@@ -32,3 +32,11 @@ pub fn handler(
 
     Ok(())
 }
+
+#[event]
+pub struct CollectionCreated {
+    pub collection: Pubkey,
+    pub authority: Pubkey,
+    pub name: String,
+    pub symbol: String,
+}

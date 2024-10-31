@@ -25,6 +25,43 @@ pub fn value_handler(
     ctx: Context<ApproveValue>,
     value: u64,
 ) -> Result<()> {
-    // Implementation
+    let token_data = &ctx.accounts.token_data;
+    let approval = &mut ctx.accounts.approval;
+
+    // Verify owner
+    require!(
+        token_data.owner == ctx.accounts.owner.key(),
+        ErrorCode::InvalidOwner
+    );
+
+    // Check value doesn't exceed token value
+    require!(
+        value <= token_data.value,
+        ErrorCode::ExceedsBalance
+    );
+
+    // Set approval
+    approval.token_id = token_data.token_id;
+    approval.owner = ctx.accounts.owner.key();
+    approval.spender = ctx.accounts.spender.key();
+    approval.value = value;
+
+    emit!(ValueApproved {
+        collection: token_data.collection,
+        token_id: token_data.token_id,
+        owner: approval.owner,
+        spender: approval.spender,
+        value,
+    });
+
     Ok(())
+}
+
+#[event]
+pub struct ValueApproved {
+    pub collection: Pubkey,
+    pub token_id: u64,
+    pub owner: Pubkey,
+    pub spender: Pubkey,
+    pub value: u64,
 }
