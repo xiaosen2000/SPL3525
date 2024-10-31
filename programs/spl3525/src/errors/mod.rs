@@ -5,8 +5,8 @@ pub enum ErrorCode {
     #[msg("Invalid authority for operation")]
     InvalidAuthority,
     
-    #[msg("Invalid slot number")]
-    InvalidSlotNumber,
+    #[msg("Invalid slot")]
+    InvalidSlot,
     
     #[msg("Slot mismatch")]
     SlotMismatch,

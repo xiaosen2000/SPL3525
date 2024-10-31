@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::errors::ErrorCode;
 
 #[derive(Accounts)]
 pub struct CreateSlot<'info> {
@@ -31,7 +32,7 @@ pub fn create_handler(
     // Validate slot number
     require!(
         slot_number == state.slot_counter,
-        ErrorCode::InvalidSlotNumber
+        ErrorCode::InvalidSlot
     );
 
     let slot_data = &mut ctx.accounts.slot_data;

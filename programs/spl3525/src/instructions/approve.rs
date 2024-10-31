@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::errors::ErrorCode;
 
 #[derive(Accounts)]
 pub struct ApproveValue<'info> {
