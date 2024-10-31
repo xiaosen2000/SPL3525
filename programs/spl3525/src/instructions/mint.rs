@@ -1,22 +1,36 @@
 use anchor_lang::prelude::*;
+use crate::utils::verify_and_create_metadata;
+use crate::state::{State, SlotData, TokenData};
+use crate::errors::ErrorCode;
 
 #[derive(Accounts)]
 pub struct MintToken<'info> {
     #[account(mut)]
     pub state: Account<'info, State>,
+    
     #[account(mut)]
     pub slot_data: Account<'info, SlotData>,
+    
     #[account(
         init,
         payer = authority,
         space = TokenData::LEN
     )]
     pub token_data: Account<'info, TokenData>,
-    /// CHECK: Metaplex metadata account
-    pub metadata: AccountInfo<'info>,
+    
+    /// CHECK: Metaplex metadata account, created in handler
+    #[account(mut)]
+    pub metadata: UncheckedAccount<'info>,
+    
     #[account(mut)]
     pub authority: Signer<'info>,
+    
     pub system_program: Program<'info, System>,
+    
+    pub rent: Sysvar<'info, Rent>,
+    
+    /// CHECK: Token Metadata Program
+    pub token_metadata_program: UncheckedAccount<'info>,
 }
 
 pub fn handler(
@@ -56,19 +70,18 @@ pub fn handler(
         .checked_add(value)
         .ok_or(ErrorCode::Overflow)?;
 
+    // Create Metaplex metadata
+    verify_and_create_metadata(
+        &ctx,
+        state.name.clone(),
+        state.symbol.clone(),
+        slot_data.metadata_uri.clone(),
+    )?;
+
     // Increment token counter
     state.token_counter = state.token_counter
         .checked_add(1)
         .ok_or(ErrorCode::Overflow)?;
-
-    // Create Metaplex metadata
-    verify_and_create_metadata(
-        &ctx.accounts.metadata,
-        &state,
-        token_id,
-        &ctx.accounts.authority,
-        &ctx.accounts.system_program,
-    )?;
 
     emit!(TokenMinted {
         collection: state.key(),
@@ -76,6 +89,7 @@ pub fn handler(
         slot,
         owner: token_data.owner,
         value,
+        metadata: ctx.accounts.metadata.key(),
     });
 
     Ok(())
@@ -88,4 +102,5 @@ pub struct TokenMinted {
     pub slot: u64,
     pub owner: Pubkey,
     pub value: u64,
+    pub metadata: Pubkey,
 }

@@ -1,5 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use mpl_token_metadata::{
+    instruction as metadata_instruction,
+    state::{Creator as MetaplexCreator, Collection, DataV2, Uses},
+};
 
 declare_id!("5ApDdwMbhHBSbmSgJEUXSSUgRnoQi2aMPQ4mpACKgG9y");
 
