@@ -30,7 +30,7 @@ pub mod spl3525 {
         symbol: String,
         decimals: u8,
     ) -> Result<()> {
-        instructions::initialize::handler(
+        process_initialize(
             ctx,
             name,
             symbol,
@@ -49,7 +49,7 @@ pub mod spl3525 {
         slot: u64,
         metadata_uri: String,
     ) -> Result<()> {
-        instructions::slot::create_handler(ctx, slot, metadata_uri)
+        process_create_slot(ctx, slot, metadata_uri)
     }
 
     /// Mint a new token with specified slot and value
@@ -63,7 +63,7 @@ pub mod spl3525 {
         slot: u64,
         value: u64,
     ) -> Result<()> {
-        instructions::mint::handler(ctx, slot, value)
+        process_mint(ctx, slot, value)
     }
 
     /// Transfer value between tokens of the same slot
@@ -75,7 +75,7 @@ pub mod spl3525 {
         ctx: Context<TransferValue>,
         value: u64,
     ) -> Result<()> {
-        instructions::transfer::value_handler(ctx, value)
+        process_transfer_value(ctx, value)
     }
 
     /// Approve an operator to manage token value
@@ -87,6 +87,6 @@ pub mod spl3525 {
         ctx: Context<ApproveValue>,
         value: u64,
     ) -> Result<()> {
-        instructions::approve::value_handler(ctx, value)
+        process_approve_value(ctx, value)
     }
 }

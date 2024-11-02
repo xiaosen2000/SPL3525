@@ -13,7 +13,7 @@ pub struct TransferValue<'info> {
     pub owner: Signer<'info>,
 }
 
-pub fn value_handler(
+pub fn process_transfer_value(
     ctx: Context<TransferValue>,
     value: u64,
 ) -> Result<()> {

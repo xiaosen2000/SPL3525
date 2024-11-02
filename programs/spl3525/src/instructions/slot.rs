@@ -19,7 +19,7 @@ pub struct CreateSlot<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn create_handler(
+pub fn process_create_slot(
     ctx: Context<CreateSlot>,
     slot_number: u64,
     metadata_uri: String,

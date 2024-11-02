@@ -33,7 +33,7 @@ pub struct MintToken<'info> {
     pub token_metadata_program: UncheckedAccount<'info>,
 }
 
-pub fn handler(
+pub fn process_mint(
     ctx: Context<MintToken>,
     slot: u64,
     value: u64,

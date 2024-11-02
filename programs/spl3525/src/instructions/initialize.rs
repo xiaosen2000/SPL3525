@@ -10,7 +10,7 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(
+pub fn process_initialize(
     ctx: Context<Initialize>,
     name: String,
     symbol: String,

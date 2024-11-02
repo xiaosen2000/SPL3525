@@ -23,7 +23,7 @@ pub struct ApproveValue<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn value_handler(
+pub fn process_approve_value(
     ctx: Context<ApproveValue>,
     value: u64,
 ) -> Result<()> {
