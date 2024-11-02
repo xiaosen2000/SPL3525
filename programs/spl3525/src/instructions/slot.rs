@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 use crate::errors::ErrorCode;
-
+use crate::state::{State, SlotData};
 #[derive(Accounts)]
+#[instruction(slot_number: u64)]
 pub struct CreateSlot<'info> {
     #[account(mut)]
     pub state: Account<'info, State>,

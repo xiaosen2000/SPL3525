@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::errors::ErrorCode;
-
+use crate::state::{TokenData, ValueApproval};
 #[derive(Accounts)]
 pub struct TransferValue<'info> {
     #[account(
@@ -40,7 +40,7 @@ pub fn value_handler(
     if ctx.accounts.owner.key() != from_token.owner {
         let approval_seeds = ValueApproval::seeds(
             from_token.token_id,
-            ctx.accounts.owner.key()
+            &ctx.accounts.owner.key()
         );
         let approval = ValueApproval::try_from_seeds(&approval_seeds)?;
         require!(

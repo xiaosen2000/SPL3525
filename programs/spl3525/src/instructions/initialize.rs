@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::state::State;
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {

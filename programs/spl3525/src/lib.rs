@@ -4,16 +4,13 @@ use mpl_token_metadata::{
     instruction as metadata_instruction,
     state::{Creator as MetaplexCreator, Collection, DataV2, Uses},
 };
-
+pub use crate::instructions::*;
 declare_id!("5ApDdwMbhHBSbmSgJEUXSSUgRnoQi2aMPQ4mpACKgG9y");
 
 pub mod errors;
 pub mod instructions;
 pub mod state;
 pub mod utils;
-
-pub use instructions::*;
-pub use state::*;
 
 #[program]
 pub mod spl3525 {
