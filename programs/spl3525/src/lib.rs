@@ -20,13 +20,15 @@ pub mod spl3525 {
     /// * `name` - Name of the collection
     /// * `symbol` - Symbol of the collection
     /// * `decimals` - Number of decimal places for token values
+    /// * `uri`` - URI
     pub fn initialize(
         ctx: Context<Initialize>,
         name: String,
         symbol: String,
         decimals: u8,
+        uri: String,
     ) -> Result<()> {
-        process_initialize(ctx, name, symbol, decimals)
+        process_initialize(ctx, name, symbol, decimals, uri)
     }
 
     /// Create a new slot for tokens within a collection
