@@ -1,67 +1,63 @@
 use anchor_lang::prelude::*;
+use crate::state::{Collection, Token};
 use crate::errors::ErrorCode;
-use crate::state::{TokenData, ValueApproval};
+
 #[derive(Accounts)]
 pub struct TransferValue<'info> {
+    pub collection: Account<'info, Collection>,
+    
     #[account(
         mut,
-        constraint = from_token.owner == owner.key()
+        seeds = [
+            b"token",
+            collection.key().as_ref(),
+            &from_token.id.to_le_bytes()
+        ],
+        bump = from_token.bump,
+        constraint = from_token.owner == owner.key() @ ErrorCode::InvalidOwner,
     )]
-    pub from_token: Account<'info, TokenData>,
-    #[account(mut)]
-    pub to_token: Account<'info, TokenData>,
+    pub from_token: Account<'info, Token>,
+    
+    #[account(
+        mut,
+        seeds = [
+            b"token",
+            collection.key().as_ref(),
+            &to_token.id.to_le_bytes()
+        ],
+        bump = to_token.bump,
+        constraint = from_token.slot == to_token.slot @ ErrorCode::SlotMismatch,
+    )]
+    pub to_token: Account<'info, Token>,
+    
     pub owner: Signer<'info>,
 }
 
 pub fn process_transfer_value(
     ctx: Context<TransferValue>,
-    value: u64,
+    amount: u64,
 ) -> Result<()> {
     let from_token = &mut ctx.accounts.from_token;
     let to_token = &mut ctx.accounts.to_token;
 
-    // Verify same slot and collection
     require!(
-        from_token.slot == to_token.slot,
-        ErrorCode::SlotMismatch
-    );
-    require!(
-        from_token.collection == to_token.collection,
-        ErrorCode::CollectionMismatch
-    );
-
-    // Check value
-    require!(
-        value <= from_token.value,
+        amount <= from_token.balance,
         ErrorCode::InsufficientValue
     );
 
-    // Check approvals if not owner
-    if ctx.accounts.owner.key() != from_token.owner {
-        let approval_seeds = ValueApproval::seeds(
-            from_token.token_id,
-            &ctx.accounts.owner.key()
-        );
-        let approval = ValueApproval::try_from_seeds(&approval_seeds)?;
-        require!(
-            value <= approval.value,
-            ErrorCode::ExceedsApproval
-        );
-    }
-
-    // Transfer value
-    from_token.value = from_token.value
-        .checked_sub(value)
+    from_token.balance = from_token.balance
+        .checked_sub(amount)
         .ok_or(ErrorCode::Overflow)?;
-    to_token.value = to_token.value
-        .checked_add(value)
+
+    to_token.balance = to_token.balance
+        .checked_add(amount)
         .ok_or(ErrorCode::Overflow)?;
 
     emit!(ValueTransferred {
-        collection: from_token.collection,
-        from_token: from_token.token_id,
-        to_token: to_token.token_id,
-        value,
+        collection: ctx.accounts.collection.key(),
+        from_token: from_token.id,
+        to_token: to_token.id,
+        amount,
         from_owner: from_token.owner,
         to_owner: to_token.owner,
     });
@@ -71,10 +67,13 @@ pub fn process_transfer_value(
 
 #[event]
 pub struct ValueTransferred {
+    #[index]
     pub collection: Pubkey,
+    #[index]
     pub from_token: u64,
+    #[index]
     pub to_token: u64,
-    pub value: u64,
+    pub amount: u64,
     pub from_owner: Pubkey,
     pub to_owner: Pubkey,
 }

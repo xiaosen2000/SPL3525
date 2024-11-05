@@ -1,56 +1,45 @@
 use anchor_lang::prelude::*;
+use crate::state::{Collection, Slot};
 use crate::errors::ErrorCode;
-use crate::state::{State, SlotData};
+
 #[derive(Accounts)]
-#[instruction(slot_number: u64)]
+#[instruction(slot_id: u64)]
 pub struct CreateSlot<'info> {
-    #[account(mut)]
-    pub state: Account<'info, State>,
+    #[account(
+        has_one = authority @ ErrorCode::InvalidAuthority,
+    )]
+    pub collection: Account<'info, Collection>,
+    
     #[account(
         init,
         payer = authority,
-        space = SlotData::LEN,
-        seeds = [b"slot", state.key().as_ref(), &slot_number.to_le_bytes()],
+        space = Slot::LEN,
+        seeds = [
+            b"slot",
+            collection.key().as_ref(),
+            &slot_id.to_le_bytes()
+        ],
         bump
     )]
-    pub slot_data: Account<'info, SlotData>,
+    pub slot: Account<'info, Slot>,
+    
     #[account(mut)]
     pub authority: Signer<'info>,
+    
     pub system_program: Program<'info, System>,
 }
 
 pub fn process_create_slot(
     ctx: Context<CreateSlot>,
-    slot_number: u64,
-    metadata_uri: String,
+    slot_id: u64,
 ) -> Result<()> {
-    let state = &mut ctx.accounts.state;
-    require!(
-        state.authority == ctx.accounts.authority.key(),
-        ErrorCode::InvalidAuthority
-    );
-
-    // Validate slot number
-    require!(
-        slot_number == state.slot_counter,
-        ErrorCode::InvalidSlot
-    );
-
-    let slot_data = &mut ctx.accounts.slot_data;
-    slot_data.collection = state.key();
-    slot_data.slot_number = slot_number;
-    slot_data.metadata_uri = metadata_uri;
-    slot_data.total_tokens = 0;
-    slot_data.total_value = 0;
-
-    // Increment slot counter
-    state.slot_counter = state.slot_counter.checked_add(1)
-        .ok_or(ErrorCode::Overflow)?;
+    let slot = &mut ctx.accounts.slot;
+    slot.id = slot_id;
+    slot.bump = ctx.bumps.slot;
 
     emit!(SlotCreated {
-        collection: state.key(),
-        slot_number,
-        metadata_uri: slot_data.metadata_uri.clone()
+        collection: ctx.accounts.collection.key(),
+        slot_id,
     });
 
     Ok(())
@@ -58,7 +47,8 @@ pub fn process_create_slot(
 
 #[event]
 pub struct SlotCreated {
+    #[index]
     pub collection: Pubkey,
-    pub slot_number: u64,
-    pub metadata_uri: String,
+    #[index]
+    pub slot_id: u64,
 }

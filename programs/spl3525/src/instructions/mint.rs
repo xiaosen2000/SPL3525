@@ -1,95 +1,62 @@
 use anchor_lang::prelude::*;
-use crate::utils::verify_and_create_metadata;
-use crate::state::{State, SlotData, TokenData};
+use crate::state::{Collection, Slot, Token};
 use crate::errors::ErrorCode;
 
 #[derive(Accounts)]
+#[instruction(token_id: u64)]
 pub struct MintToken<'info> {
-    #[account(mut)]
-    pub state: Account<'info, State>,
+    #[account(
+        has_one = authority @ ErrorCode::InvalidAuthority,
+    )]
+    pub collection: Account<'info, Collection>,
     
-    #[account(mut)]
-    pub slot_data: Account<'info, SlotData>,
+    #[account(
+        seeds = [
+            b"slot",
+            collection.key().as_ref(),
+            &slot.id.to_le_bytes()
+        ],
+        bump = slot.bump
+    )]
+    pub slot: Account<'info, Slot>,
     
     #[account(
         init,
         payer = authority,
-        space = TokenData::LEN
+        space = Token::LEN,
+        seeds = [
+            b"token",
+            collection.key().as_ref(),
+            &token_id.to_le_bytes()
+        ],
+        bump
     )]
-    pub token_data: Account<'info, TokenData>,
-    
-    /// CHECK: Metaplex metadata account, created in handler
-    #[account(mut)]
-    pub metadata: UncheckedAccount<'info>,
+    pub token: Account<'info, Token>,
     
     #[account(mut)]
     pub authority: Signer<'info>,
     
     pub system_program: Program<'info, System>,
-    
-    pub rent: Sysvar<'info, Rent>,
-    
-    /// CHECK: Token Metadata Program
-    pub token_metadata_program: UncheckedAccount<'info>,
 }
 
 pub fn process_mint(
     ctx: Context<MintToken>,
-    slot: u64,
-    value: u64,
+    token_id: u64,
+    balance: u64,
 ) -> Result<()> {
-    let state = &mut ctx.accounts.state;
-    let slot_data = &mut ctx.accounts.slot_data;
-
-    // Verify slot
-    require!(
-        slot_data.slot_number == slot,
-        ErrorCode::InvalidSlot
-    );
-    require!(
-        slot_data.collection == state.key(),
-        ErrorCode::InvalidCollection
-    );
-
-    // Create token data
-    let token_data = &mut ctx.accounts.token_data;
-    let token_id = state.token_counter;
-
-    token_data.token_id = token_id;
-    token_data.owner = ctx.accounts.authority.key();
-    token_data.slot = slot;
-    token_data.value = value;
-    token_data.metadata = ctx.accounts.metadata.key();
-    token_data.collection = state.key();
-
-    // Update slot totals
-    slot_data.total_tokens = slot_data.total_tokens
-        .checked_add(1)
-        .ok_or(ErrorCode::Overflow)?;
-    slot_data.total_value = slot_data.total_value
-        .checked_add(value)
-        .ok_or(ErrorCode::Overflow)?;
-
-    // Create Metaplex metadata
-    verify_and_create_metadata(
-        &ctx,
-        state.name.clone(),
-        state.symbol.clone(),
-        slot_data.metadata_uri.clone(),
-    )?;
-
-    // Increment token counter
-    state.token_counter = state.token_counter
-        .checked_add(1)
-        .ok_or(ErrorCode::Overflow)?;
+    let token = &mut ctx.accounts.token;
+    token.id = token_id;
+    token.slot = ctx.accounts.slot.id;
+    token.balance = balance;
+    token.owner = ctx.accounts.authority.key();
+    token.bump = ctx.bumps.token;
 
     emit!(TokenMinted {
-        collection: state.key(),
+        collection: ctx.accounts.collection.key(),
         token_id,
-        slot,
-        owner: token_data.owner,
-        value,
-        metadata: ctx.accounts.metadata.key(),
+        slot_id: token.slot,
+        owner: token.owner,
+        balance,
     });
 
     Ok(())
@@ -97,10 +64,11 @@ pub fn process_mint(
 
 #[event]
 pub struct TokenMinted {
+    #[index]
     pub collection: Pubkey,
+    #[index]
     pub token_id: u64,
-    pub slot: u64,
+    pub slot_id: u64,
     pub owner: Pubkey,
-    pub value: u64,
-    pub metadata: Pubkey,
+    pub balance: u64,
 }

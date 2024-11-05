@@ -1,25 +1,43 @@
 use anchor_lang::prelude::*;
+use crate::state::{Collection, Token, Approval};
 use crate::errors::ErrorCode;
-use crate::state::{ValueApproval, TokenData};
 
 #[derive(Accounts)]
 pub struct ApproveValue<'info> {
+    pub collection: Account<'info, Collection>,
+    
+    #[account(
+        seeds = [
+            b"token",
+            collection.key().as_ref(),
+            &token.id.to_le_bytes()
+        ],
+        bump = token.bump,
+        constraint = token.owner == owner.key() @ ErrorCode::InvalidOwner,
+    )]
+    pub token: Account<'info, Token>,
+    
     #[account(
         init,
         payer = owner,
-        space = ValueApproval::LEN,
-        seeds = [b"approval", &token_data.token_id.to_le_bytes(), spender.key().as_ref()],
+        space = Approval::LEN,
+        seeds = [
+            b"approval",
+            collection.key().as_ref(),
+            &token.id.to_le_bytes(),
+            owner.key().as_ref(),
+            spender.key().as_ref()
+        ],
         bump
     )]
-    pub approval: Account<'info, ValueApproval>,
-    #[account(
-        constraint = token_data.owner == owner.key()
-    )]
-    pub token_data: Account<'info, TokenData>,
+    pub approval: Account<'info, Approval>,
+    
     #[account(mut)]
     pub owner: Signer<'info>,
-    /// CHECK: This account is only used as a reference for approval
+    
+    /// CHECK: Spender pubkey is only stored
     pub spender: AccountInfo<'info>,
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -27,30 +45,23 @@ pub fn process_approve_value(
     ctx: Context<ApproveValue>,
     value: u64,
 ) -> Result<()> {
-    let token_data = &ctx.accounts.token_data;
+    let token = &ctx.accounts.token;
     let approval = &mut ctx.accounts.approval;
 
-    // Verify owner
     require!(
-        token_data.owner == ctx.accounts.owner.key(),
-        ErrorCode::InvalidOwner
-    );
-
-    // Check value doesn't exceed token value
-    require!(
-        value <= token_data.value,
+        value <= token.balance,
         ErrorCode::ExceedsBalance
     );
 
-    // Set approval
-    approval.token_id = token_data.token_id;
+    approval.token_id = token.id;
     approval.owner = ctx.accounts.owner.key();
     approval.spender = ctx.accounts.spender.key();
     approval.value = value;
+    approval.bump = ctx.bumps.approval;
 
     emit!(ValueApproved {
-        collection: token_data.collection,
-        token_id: token_data.token_id,
+        collection: ctx.accounts.collection.key(),
+        token_id: token.id,
         owner: approval.owner,
         spender: approval.spender,
         value,
@@ -61,7 +72,9 @@ pub fn process_approve_value(
 
 #[event]
 pub struct ValueApproved {
+    #[index]
     pub collection: Pubkey,
+    #[index]
     pub token_id: u64,
     pub owner: Pubkey,
     pub spender: Pubkey,
