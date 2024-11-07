@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::state::{Collection, Token};
+use crate::state::{Collection, Token, Approval};
 use crate::errors::ErrorCode;
 
 #[derive(Accounts)]
@@ -14,7 +14,6 @@ pub struct TransferValue<'info> {
             &from_token.id.to_le_bytes()
         ],
         bump = from_token.bump,
-        constraint = from_token.owner == owner.key() @ ErrorCode::InvalidOwner,
     )]
     pub from_token: Account<'info, Token>,
     
@@ -29,6 +28,19 @@ pub struct TransferValue<'info> {
         constraint = from_token.slot == to_token.slot @ ErrorCode::SlotMismatch,
     )]
     pub to_token: Account<'info, Token>,
+
+    #[account(
+        mut,
+        seeds = [
+            b"approval",
+            collection.key().as_ref(),
+            &from_token.id.to_le_bytes(),
+            from_token.owner.key().as_ref(),
+            owner.key().as_ref()
+        ],
+        bump = approval.bump
+    )]
+    pub approval: Account<'info, Approval>,
     
     pub owner: Signer<'info>,
 }
@@ -39,6 +51,15 @@ pub fn process_transfer_value(
 ) -> Result<()> {
     let from_token = &mut ctx.accounts.from_token;
     let to_token = &mut ctx.accounts.to_token;
+    let approval = &mut ctx.accounts.approval;
+
+    // Check if owner is the token owner (direct transfer) or has sufficient approval
+    if from_token.owner != ctx.accounts.owner.key() {
+        require!(
+            amount <= approval.value,
+            ErrorCode::ExceedsApproval
+        );
+    }
 
     require!(
         amount <= from_token.balance,

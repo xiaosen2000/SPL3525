@@ -34,4 +34,7 @@ pub enum ErrorCode {
     
     #[msg("Invalid metadata account")]
     InvalidMetadata,
+
+    #[msg("Cannot approve to current owner")]
+    SelfApproval,
 }

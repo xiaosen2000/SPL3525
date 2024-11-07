@@ -47,6 +47,13 @@ pub fn process_approve_value(
 ) -> Result<()> {
     let token = &ctx.accounts.token;
     let approval = &mut ctx.accounts.approval;
+    let owner = ctx.accounts.owner.key();
+    let spender = ctx.accounts.spender.key();
+
+    require!(
+        spender != owner,
+        ErrorCode::SelfApproval
+    );
 
     require!(
         value <= token.balance,
